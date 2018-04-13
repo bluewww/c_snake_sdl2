@@ -11,6 +11,8 @@ int main(int argc, char *argv[argc + 1])
     SDL_Window *window = NULL;
     SDL_Surface *screen_surface = NULL;
     SDL_Surface *splash_image = NULL;
+    SDL_Event event;
+    bool quit = false;
 
     int status = EXIT_SUCCESS;
 
@@ -41,10 +43,15 @@ int main(int argc, char *argv[argc + 1])
         goto cleanup1;
     }
 
-    SDL_Delay(2000);
-    SDL_BlitSurface(splash_image, NULL, screen_surface, NULL);
-    SDL_UpdateWindowSurface(window);
-    SDL_Delay(2000);
+    while (!quit) {
+        while (SDL_PollEvent(&event) != 0) {
+            if (event.type == SDL_QUIT) {
+                quit = true;
+            }
+        }
+        SDL_BlitSurface(splash_image, NULL, screen_surface, NULL);
+        SDL_UpdateWindowSurface(window);
+    }
 
 cleanup1:
     SDL_FreeSurface(splash_image);
