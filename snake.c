@@ -28,7 +28,7 @@ SDL_Surface *create_color_surface(Uint32 width, Uint32 height, Uint32 r,
         printf("Couldn't create RGB surface, %s\n", SDL_GetError());
         return NULL;
     }
-    if (!SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, r, g, b))) {
+    if (SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, r, g, b))) {
         printf("Couldn't fill surface, %s\n", SDL_GetError());
         SDL_FreeSurface(surface);
         return NULL;
