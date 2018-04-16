@@ -46,10 +46,13 @@ void render_world(struct world *world, struct snake_part *snake,
         for (uint32_t y = 0; y < world->world_size_y; y++) {
             rect.x = x * world->world_size_x;
             rect.y = y * world->world_size_y;
-            SDL_BlitSurface(world->white_surface, NULL, surface, &rect);
+            if ((x % 2 == 0) && (y % 2 == 0))
+                SDL_BlitSurface(world->white_surface, NULL, surface, &rect);
+            else
+                SDL_BlitSurface(world->black_surface, NULL, surface, &rect);
         }
     }
-    //TODO: render snake
+    // TODO: render snake
 }
 SDL_Surface *load_surface(const char path[1])
 {
@@ -82,9 +85,6 @@ int main(int argc, char *argv[argc + 1])
     SDL_Window *window = NULL;
     SDL_Surface *screen_surface = NULL;
     SDL_Surface *splash_image = NULL;
-    SDL_Surface *white_surface = NULL;
-    SDL_Surface *black_surface = NULL;
-    SDL_Rect tile;
     SDL_Event event;
     bool quit = false;
 
@@ -127,13 +127,13 @@ int main(int argc, char *argv[argc + 1])
     world.world_size_y = 30;
 
     world.black_surface = create_color_surface(100, 100, 0, 0, 0);
-    if (!black_surface) {
+    if (!world.black_surface) {
         status = EXIT_FAILURE;
         goto cleanup2;
     }
 
     world.white_surface = create_color_surface(100, 100, 255, 255, 255);
-    if (!white_surface) {
+    if (!world.white_surface) {
         status = EXIT_FAILURE;
         goto cleanup3;
     }
@@ -150,12 +150,10 @@ int main(int argc, char *argv[argc + 1])
                 }
             }
         }
-        tile.x = 10;
-        tile.y = 10;
         /* SDL_BlitSurface(splash_image, NULL, screen_surface, NULL); */
         /* SDL_BlitSurface(world.white_surface, NULL, screen_surface, NULL); */
         /* SDL_BlitSurface(world.black_surface, NULL, screen_surface, &tile); */
-	render_world(&world, &snake, screen_surface);
+        render_world(&world, &snake, screen_surface);
         SDL_UpdateWindowSurface(window);
     }
 
