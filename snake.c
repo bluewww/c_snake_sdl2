@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
+#include <errno.h>
 
 #include <SDL2/SDL.h>
 
@@ -29,19 +31,79 @@ SDL_Surface *create_color_surface(Uint32 width, Uint32 height, Uint32 r,
 // TODO: snake queue
 // TODO: food spawn logic
 // TODO: struct world
+void update_snake();
+int alloc_snake(struct snake_part **, struct snake_part **);
+void free_snake(struct snake_part *);
+
 void render_world(struct world *, struct snake_part *, SDL_Surface *);
 void update_all();
 
-void render_world(struct world *world, struct snake_part *snake,
+int alloc_snake(struct snake_part **head, struct snake_part **tail)
+{
+    if (!head || !tail)
+        return -1;
+    /* We use this to zero all struct entries */
+    struct snake_part zero = {0};
+
+    /* allocate both head and tail */
+    *head = malloc(sizeof(struct snake_part));
+    if (!head) {
+        printf("Snake allocation failed, %s\n", strerror(errno));
+        return -1;
+    }
+
+    *tail = malloc(sizeof(struct snake_part));
+    if (!tail) {
+        free(head);
+        printf("Snake allocation failed, %s\n", strerror(errno));
+        return -1;
+    }
+    **head = zero;
+    **tail = zero;
+
+    /* Put to initial position and connect */
+    (*head)->x = 1;
+    (*head)->y = 0;
+    (*head)->prev = *tail;
+    (*tail)->x = 0;
+    (*tail)->y = 0;
+    (*tail)->prev = NULL; /* not needed, actually */
+
+    return 0;
+}
+
+void free_snake(struct snake_part *head)
+{
+    if (!head)
+        return;
+    struct snake_part **next_ptr = &head; /* pointer to the head pointer */
+    struct snake_part *free_ptr;
+
+    /*
+     * backup copy of pointer since we are freeing the struct with the
+     * original pointer
+     */
+    struct snake_part *saved_ptr;
+
+    while (*next_ptr) {
+        free_ptr = *next_ptr;
+        saved_ptr = ((*next_ptr)->prev);
+        next_ptr = &saved_ptr;
+        free(free_ptr);
+    }
+}
+
+// TODO set both const
+void render_world(struct world *world, struct snake_part *snake_head,
                   SDL_Surface *surface)
 {
     SDL_Rect rect;
     rect.x = 0;
     rect.y = 0;
-    rect.w = (int)world->tile_size_x;
+    rect.w = (int)world->tile_size_x; /* unfortunate type chosen by SDL */
     rect.h = (int)world->tile_size_y;
 
-    /* Render world */
+    /* Render world tiles */
     for (uint32_t x = 0; x < world->world_size_x; x++) {
         for (uint32_t y = 0; y < world->world_size_y; y++) {
             rect.x = x * world->world_size_x;
@@ -52,7 +114,8 @@ void render_world(struct world *world, struct snake_part *snake,
                 SDL_BlitSurface(world->black_surface, NULL, surface, &rect);
         }
     }
-    // TODO: render snake
+
+    /* Render snake tiles*/
 }
 SDL_Surface *load_surface(const char path[1])
 {
@@ -104,22 +167,29 @@ int main(int argc, char *argv[argc + 1])
         return EXIT_FAILURE;
     }
 
+    /* Do not free this surface, per documentation */
     screen_surface = SDL_GetWindowSurface(window);
     if (!screen_surface) {
         printf("Screen surface could not be created, %s\n", SDL_GetError());
         status = EXIT_FAILURE;
-        goto cleanup0;
+        goto fail_screen;
     }
 
     splash_image = load_surface("hello_world.bmp");
     if (!splash_image) {
         status = EXIT_FAILURE;
-        goto cleanup1;
+        goto fail_splash;
     }
 
     /* Init world stuff */
     // TODO: finish the snake
-    struct snake_part snake;
+    struct snake_part *snake_head = NULL;
+    struct snake_part *snake_tail = NULL;
+    if (alloc_snake(&snake_head, &snake_tail)) {
+        status = EXIT_FAILURE;
+        goto fail_snake;
+    }
+
     struct world world;
     world.tile_size_x = 16;
     world.tile_size_y = 16;
@@ -129,13 +199,13 @@ int main(int argc, char *argv[argc + 1])
     world.black_surface = create_color_surface(100, 100, 0, 0, 0);
     if (!world.black_surface) {
         status = EXIT_FAILURE;
-        goto cleanup2;
+        goto fail_black;
     }
 
     world.white_surface = create_color_surface(100, 100, 255, 255, 255);
     if (!world.white_surface) {
         status = EXIT_FAILURE;
-        goto cleanup3;
+        goto fail_white;
     }
 
     while (!quit) {
@@ -153,20 +223,22 @@ int main(int argc, char *argv[argc + 1])
         /* SDL_BlitSurface(splash_image, NULL, screen_surface, NULL); */
         /* SDL_BlitSurface(world.white_surface, NULL, screen_surface, NULL); */
         /* SDL_BlitSurface(world.black_surface, NULL, screen_surface, &tile); */
-        render_world(&world, &snake, screen_surface);
+        render_world(&world, snake_head, screen_surface);
         SDL_UpdateWindowSurface(window);
     }
 
-cleanup3:
     SDL_FreeSurface(world.white_surface);
     world.white_surface = NULL;
-cleanup2:
+fail_white:
     SDL_FreeSurface(world.black_surface);
     world.black_surface = NULL;
-cleanup1:
+fail_black:
+    free_snake(snake_head);
+fail_snake:
     SDL_FreeSurface(splash_image);
     splash_image = NULL;
-cleanup0:
+fail_splash:
+fail_screen:
     SDL_DestroyWindow(window);
     SDL_Quit();
 
