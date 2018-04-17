@@ -98,24 +98,27 @@ void render_world(struct world *world, struct snake_part *snake_head,
                   SDL_Surface *surface)
 {
     SDL_Rect rect;
-    rect.x = 0;
-    rect.y = 0;
     rect.w = (int)world->tile_size_x; /* unfortunate type chosen by SDL */
     rect.h = (int)world->tile_size_y;
 
     /* Render world tiles */
     for (uint32_t x = 0; x < world->world_size_x; x++) {
         for (uint32_t y = 0; y < world->world_size_y; y++) {
-            rect.x = x * world->world_size_x;
-            rect.y = y * world->world_size_y;
-            if ((x % 2 == 0) && (y % 2 == 0))
-                SDL_BlitSurface(world->white_surface, NULL, surface, &rect);
-            else
-                SDL_BlitSurface(world->black_surface, NULL, surface, &rect);
+            rect.x = x * world->tile_size_x;
+            rect.y = y * world->tile_size_y;
+            SDL_BlitSurface(world->black_surface, NULL, surface, &rect);
         }
     }
 
     /* Render snake tiles*/
+    struct snake_part **snake_ptr = &snake_head;
+
+    while (*snake_ptr) {
+        rect.x = (*snake_ptr)->x * world->tile_size_x;
+        rect.y = (*snake_ptr)->y * world->tile_size_y;
+        SDL_BlitSurface(world->white_surface, NULL, surface, &rect);
+        snake_ptr = &((*snake_ptr)->prev);
+    }
 }
 SDL_Surface *load_surface(const char path[1])
 {
@@ -196,13 +199,15 @@ int main(int argc, char *argv[argc + 1])
     world.world_size_x = 40;
     world.world_size_y = 30;
 
-    world.black_surface = create_color_surface(100, 100, 0, 0, 0);
+    world.black_surface =
+        create_color_surface(world.tile_size_x, world.tile_size_y, 0, 0, 0);
     if (!world.black_surface) {
         status = EXIT_FAILURE;
         goto fail_black;
     }
 
-    world.white_surface = create_color_surface(100, 100, 255, 255, 255);
+    world.white_surface = create_color_surface(
+        world.tile_size_x, world.tile_size_y, 255, 255, 255);
     if (!world.white_surface) {
         status = EXIT_FAILURE;
         goto fail_white;
